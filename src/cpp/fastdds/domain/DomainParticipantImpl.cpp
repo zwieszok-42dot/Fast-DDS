@@ -1621,7 +1621,7 @@ void DomainParticipantImpl::MyRTPSParticipantListener::on_type_discovery(
             identifier,
             object,
             dyn_type);
-
+        
         participant_->check_get_type_request(request_sample_id, identifier, object, dyn_type);
     }
 }
@@ -1759,7 +1759,7 @@ ReturnCode_t DomainParticipantImpl::register_remote_type(
         fill_pending_dependencies(type_information.complete().dependent_typeids(), dependencies, retrieve_objects);
 
         fastrtps::rtps::SampleIdentity request_dependencies;
-        fastrtps::rtps::SampleIdentity request_objects;
+        std::vector<fastrtps::rtps::SampleIdentity> request_objects;
 
         // Lock now, we don't want to process the reply before we add the requests' ID to the maps.
         std::lock_guard<std::mutex> lock(mtx_request_cb_);
@@ -1773,7 +1773,10 @@ ReturnCode_t DomainParticipantImpl::register_remote_type(
         // If any pending TypeObject exists, retrieve it
         if (!retrieve_objects.empty())
         {
-            request_objects = get_types(retrieve_objects);
+            for(auto& ro : retrieve_objects){
+                auto request = get_types(TypeIdentifierSeq{ro});
+                request_objects.push_back(request);
+            }
         }
 
         // If no more dependencies but failed to create, probably we only need the TypeObject
@@ -1792,10 +1795,12 @@ ReturnCode_t DomainParticipantImpl::register_remote_type(
             child_requests_.emplace(std::make_pair(request_dependencies, requestId));
         }
 
-        if (builtin::INVALID_SAMPLE_IDENTITY != request_objects)
+        if (!request_objects.empty())
         {
-            vector.push_back(request_objects);
-            child_requests_.emplace(std::make_pair(request_objects, requestId));
+            for(auto& ro : request_objects){
+                vector.push_back(ro);
+                child_requests_.emplace(std::make_pair(ro, requestId));
+            }
         }
 
         // Move the filled vector to the map

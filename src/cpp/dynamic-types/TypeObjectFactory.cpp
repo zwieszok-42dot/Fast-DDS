@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <exception>
 #include <fastrtps/types/TypeObjectFactory.h>
 #include <fastrtps/types/TypeDescriptor.h>
 #include <fastrtps/types/MemberDescriptor.h>
@@ -819,6 +820,11 @@ void TypeObjectFactory::fill_complete_information(
                     {
                         const TypeIdentifier* innerId = get_stored_type_identifier(
                             &member->common().member_type_id());
+                        if(innerId == nullptr)
+                        {
+                            logError(DYN_TYPES, "Error getting stored type identifier - this is unrecoverable error, bacause this pointer is dereferenced later without null check.");
+                            std::terminate();
+                        }
                         std::lock_guard<std::recursive_mutex> lock(m_MutexInformations);
                         auto memberType = informations_.find(innerId);
                         if (memberType != informations_.end())
